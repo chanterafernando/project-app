@@ -19,7 +19,7 @@ permissions:
 
 defaults:
   run:
-    working-directory: backend   # el código de la API está en la carpeta backend/
+    working-directory: thesis-management/backend   # carpeta donde está la API
 
 jobs:
   # ------------------------------------------------------------------
@@ -27,17 +27,17 @@ jobs:
   # ------------------------------------------------------------------
   validate:
     name: Lint & tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Descargar el código
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Instalar Python 3.13
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: backend/requirements*.txt
+          cache-dependency-path: thesis-management/backend/requirements*.txt
 
       - name: Instalar dependencias
         run: pip install -r requirements-dev.txt
@@ -54,7 +54,7 @@ jobs:
   # ------------------------------------------------------------------
   migrations:
     name: Migrations on MySQL 8
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       mysql:
         image: mysql:8.0
@@ -71,13 +71,13 @@ jobs:
     env:
       DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/thesis_db
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
           cache: pip
-          cache-dependency-path: backend/requirements*.txt
+          cache-dependency-path: thesis-management/backend/requirements*.txt
 
       - name: Instalar dependencias
         run: pip install -r requirements.txt
