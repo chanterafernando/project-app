@@ -1,0 +1,91 @@
+name: Thesis Management CI
+
+# Cuándo se ejecuta: en cada pull request hacia main y en cada push a main.
+# workflow_dispatch permite lanzarlo a mano desde la pestaña Actions.
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Si llegan dos pushes seguidos a la misma rama, se cancela la ejecución anterior.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: backend   # el código de la API está en la carpeta backend/
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. Lint (análisis estático con Ruff) + pruebas automáticas (pytest)
+  # ------------------------------------------------------------------
+  validate:
+    name: Lint & tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Descargar el código
+        uses: actions/checkout@v4
+
+      - name: Instalar Python 3.13
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements-dev.txt
+
+      - name: Lint (Ruff)
+        run: ruff check . --output-format=github
+
+      - name: Pruebas (pytest)
+        run: pytest -v
+
+  # ------------------------------------------------------------------
+  # 2. Las migraciones de Alembic se aplican en un MySQL 8 real
+  #    (comprueba que el esquema funciona en el motor de producción)
+  # ------------------------------------------------------------------
+  migrations:
+    name: Migrations on MySQL 8
+    runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8.0
+        env:
+          MYSQL_ROOT_PASSWORD: root          # base temporal de CI, no es un secreto real
+          MYSQL_DATABASE: thesis_db
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -h 127.0.0.1 -proot"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=20
+    env:
+      DATABASE_URL: mysql+pymysql://root:root@127.0.0.1:3306/thesis_db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+          cache-dependency-path: backend/requirements*.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Aplicar migraciones (upgrade)
+        run: alembic upgrade head
+
+      - name: Revertir y volver a aplicar (downgrade/upgrade)
+        run: |
+          alembic downgrade base
+          alembic upgrade head
