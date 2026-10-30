@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter
 
 from app.config import settings
@@ -15,4 +17,5 @@ def health() -> dict:
         "status": "ok",
         "service": "thesis-management-api",
         "version": settings.APP_VERSION,
+        "timestamp": datetime.now(UTC).isoformat(),
     }
