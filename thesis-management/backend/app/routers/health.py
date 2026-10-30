@@ -1,4 +1,3 @@
-import os
 from datetime import UTC, datetime
 
 from fastapi import APIRouter
